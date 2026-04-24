@@ -16,7 +16,17 @@ import {
   CheckCircle2,
   Trash,
   Minus,
-  LayoutGrid
+  LayoutGrid,
+  Coffee,
+  Zap,
+  Box,
+  Wind,
+  Container,
+  Cake,
+  Wheat,
+  Utensils,
+  Flame,
+  Cookie
 } from 'lucide-react';
 import { DEFAULT_ITEMS, CATEGORY_COLORS } from './constants';
 import { Item, CartItem, Order, DailySummary } from './types';
@@ -33,7 +43,30 @@ export default function App() {
     setCustomItems(storage.getCustomItems());
   }, []);
 
-  const allItems = useMemo(() => [...DEFAULT_ITEMS, ...customItems], [customItems]);
+  const allItemsByGroup = useMemo(() => {
+    const items = [...DEFAULT_ITEMS, ...customItems];
+    return items.reduce((acc, item) => {
+      if (!acc[item.category]) acc[item.category] = [];
+      acc[item.category].push(item);
+      return acc;
+    }, {} as Record<string, Item[]>);
+  }, [customItems]);
+
+  const IconComponent = ({ name, size = 24 }: { name?: string; size?: number }) => {
+    switch (name) {
+      case 'Coffee': return <Coffee size={size} />;
+      case 'Zap': return <Zap size={size} />;
+      case 'Box': return <Box size={size} />;
+      case 'Wind': return <Wind size={size} />;
+      case 'Container': return <Container size={size} />;
+      case 'Cake': return <Cake size={size} />;
+      case 'Wheat': return <Wheat size={size} />;
+      case 'Utensils': return <Utensils size={size} />;
+      case 'Flame': return <Flame size={size} />;
+      case 'Cookie': return <Cookie size={size} />;
+      default: return <Plus size={size} />;
+    }
+  };
 
   const addToCart = (item: Item) => {
     setCart(prev => {
@@ -90,87 +123,43 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B] font-sans flex flex-col md:flex-row max-w-[1400px] mx-auto overflow-hidden">
+    <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B] font-sans flex flex-col max-w-[1400px] mx-auto overflow-hidden h-screen">
       
-      {/* Sidebar (Cart) on Desktop / Main Cart on Mobile */}
-      <aside className={`w-full md:w-[320px] bg-white md:border-r-2 border-slate-200 flex flex-col fixed inset-0 md:relative z-40 transition-transform ${view === 'billing' ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${view !== 'billing' && 'hidden md:flex'}`}>
-        <div className="p-6 border-b-2 border-slate-100 flex flex-col gap-1">
-          <div className="flex justify-between items-baseline">
-            <h1 className="text-2xl font-[900] tracking-tighter text-[#0F172A]">CHAI POINT</h1>
-            <span className="text-sm text-slate-500 font-medium">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6 space-y-3">
-          {cart.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-300 space-y-4">
-              <ShoppingCart size={48} strokeWidth={1.5} />
-              <p className="font-medium">Order is empty</p>
-            </div>
-          ) : (
-            cart.map((item) => (
-              <div key={item.id} className="flex items-center justify-between group">
-                <div className="flex items-center gap-2">
-                  <span className="bg-[#F1F5F9] px-2.5 py-1 rounded-lg font-bold text-sm text-[#0F172A]">{item.quantity}</span>
-                  <p className="font-medium text-sm text-[#1E293B]">{item.name}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm">₹{calculateItemTotal(item)}</span>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => removeFromCart(item.id)} className="p-1 hover:bg-slate-100 rounded text-slate-400"><Minus size={14}/></button>
-                    <button onClick={() => addToCart(item)} className="p-1 hover:bg-slate-100 rounded text-slate-400"><Plus size={14}/></button>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="p-6 mt-auto border-t-[4px] border-double border-slate-200 bg-white">
-          <div className="flex justify-between items-center mb-6">
-            <span className="text-2xl font-[900] text-[#0F172A]">Total</span>
-            <span className="text-3xl font-[900] text-[#0F172A]">₹{cartTotal}</span>
-          </div>
-          <button
-            disabled={cart.length === 0}
-            onClick={handleCompleteOrder}
-            className={`w-full py-6 rounded-[20px] font-bold text-xl transition-all shadow-lg ${
-              cart.length > 0 
-                ? 'bg-[#2563EB] text-white shadow-blue-200 active:scale-95' 
-                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-            }`}
-          >
-            COMPLETE ORDER
-          </button>
-          
-          {/* Mobile Tab Swither (Hidden on Desktop) */}
-          <div className="flex md:hidden mt-6 gap-2">
-            <button onClick={() => setView('summary')} className="flex-1 py-3 bg-slate-100 rounded-xl font-bold text-sm">Daily Summary</button>
-            <button onClick={() => setView('settings')} className="flex-1 py-3 bg-slate-100 rounded-xl font-bold text-sm">Settings</button>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto flex flex-col h-screen">
-        {/* Top bar for non-billing views or mobile navigation */}
-        <div className="p-6 md:p-8 flex justify-between items-center bg-[#F8FAFC]">
+      {/* Header - Fixed at Top */}
+      <header className="bg-white border-b-2 border-slate-100 p-4 shrink-0 z-50">
+        <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-              {view === 'billing' ? 'Select Items' : view.toUpperCase()}
-            </h2>
+            <h1 className="text-2xl md:text-3xl font-[900] tracking-tighter text-[#0F172A]">CHAI POINT</h1>
+            <p className="text-[10px] md:text-xs text-slate-500 font-bold uppercase tracking-widest leading-none mt-1">
+              {new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+            </p>
           </div>
-          <div className="hidden md:flex gap-3">
-            <button onClick={() => setView('billing')} className={`px-4 py-2 rounded-lg text-sm font-bold border transition-all ${view === 'billing' ? 'bg-[#0F172A] text-white border-[#0F172A]' : 'bg-white text-slate-600 border-slate-200'}`}>Billing</button>
-            <button onClick={() => setView('summary')} className={`px-4 py-2 rounded-lg text-sm font-bold border transition-all ${view === 'summary' ? 'bg-[#0F172A] text-white border-[#0F172A]' : 'bg-white text-slate-600 border-slate-200'}`}>Daily Summary</button>
-            <button onClick={() => setView('settings')} className={`px-4 py-2 rounded-lg text-sm font-bold border transition-all ${view === 'settings' ? 'bg-[#0F172A] text-white border-[#0F172A]' : 'bg-white text-slate-600 border-slate-200'}`}>+ New Item</button>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setView('billing')} 
+              className={`p-3 rounded-xl transition-all ${view === 'billing' ? 'bg-[#0F172A] text-white shadow-lg' : 'bg-slate-50 text-slate-400 border border-slate-200'}`}
+            >
+              <LayoutGrid size={22} />
+            </button>
+            <button 
+              onClick={() => setView('summary')} 
+              className={`p-3 rounded-xl transition-all ${view === 'summary' ? 'bg-[#0F172A] text-white shadow-lg' : 'bg-slate-50 text-slate-400 border border-slate-200'}`}
+            >
+              <History size={22} />
+            </button>
+            <button 
+              onClick={() => setView('settings')} 
+              className={`p-3 rounded-xl transition-all ${view === 'settings' ? 'bg-[#0F172A] text-white shadow-lg' : 'bg-slate-50 text-slate-400 border border-slate-200'}`}
+            >
+              <Plus size={22} />
+            </button>
           </div>
-          {view !== 'billing' && (
-             <button onClick={() => setView('billing')} className="md:hidden bg-[#0F172A] text-white px-4 py-2 rounded-lg text-sm font-bold">Back to Billing</button>
-          )}
         </div>
+      </header>
 
-        <div className="flex-1 p-6 md:p-8 pt-0 overflow-y-auto">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+        {/* Main Workspace */}
+        <main className="flex-1 overflow-y-auto bg-[#F8FAFC]">
           <AnimatePresence mode="wait">
             {view === 'billing' && (
               <motion.div 
@@ -178,34 +167,141 @@ export default function App() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="space-y-6 flex flex-col h-full"
+                className="p-4 md:p-8 flex flex-col gap-6"
               >
-                {/* Items Grid */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 flex-1 align-content-start overflow-y-auto">
-                  {allItems.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => addToCart(item)}
-                      className={`${item.color} p-5 rounded-[16px] text-white shadow-md active:scale-95 active:opacity-70 transition-all flex flex-col items-center justify-center text-center`}
-                    >
-                      <span className="text-[18px] font-extrabold uppercase tracking-tight mb-1">{item.name}</span>
-                      <span className="text-[16px] font-medium opacity-90">₹{item.price}</span>
-                    </button>
+                {/* Items Grouped by Category */}
+                <div className="flex flex-col gap-10 pb-48 md:pb-12">
+                  {(Object.entries(allItemsByGroup) as [string, Item[]][]).map(([category, items]) => (
+                    <div key={category} className="space-y-4">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-3 h-10 rounded-full ${CATEGORY_COLORS[category]?.split(' ')[0] || 'bg-slate-500'}`} />
+                        <h3 className="text-2xl font-black text-slate-400 uppercase tracking-[0.2em]">{category}</h3>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {items.map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => addToCart(item)}
+                            className={`${item.color} min-h-[140px] md:min-h-[160px] p-6 rounded-[28px] shadow-xl shadow-slate-200/50 active:scale-95 active:opacity-70 transition-all flex flex-col items-center justify-between text-center relative overflow-hidden group border-2 border-slate-200/50 hover:border-slate-300`}
+                          >
+                            {/* Larger, decorative icon in background to prevent overlap */}
+                            <div className="absolute inset-0 flex items-center justify-center opacity-[0.08] group-hover:scale-110 transition-transform pointer-events-none">
+                              <IconComponent name={item.iconName} size={110} />
+                            </div>
+                            
+                            <div className="flex-1 flex flex-col items-center justify-center relative z-10 w-full">
+                               <span className="text-2xl md:text-3xl font-[1000] uppercase tracking-tighter leading-[1] mb-1 drop-shadow-sm break-words px-2">
+                                {item.name.split(' ₹')[0]}
+                              </span>
+                            </div>
+                            
+                            <div className="bg-white/50 backdrop-blur-sm px-6 py-2.5 rounded-2xl w-full flex justify-between items-center relative z-10 border-t border-white/40">
+                              <span className="text-[10px] font-black uppercase tracking-[0.1em] opacity-60">Price</span>
+                              <span className="text-xl md:text-2xl font-black">₹{item.price}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ))}
-                </div>
-
-                {/* Bottom Summary Bar (Desktop) */}
-                <div className="hidden md:flex bg-[#0F172A] text-white p-4 px-6 rounded-xl justify-between items-center mt-auto">
-                    <DailyStats />
                 </div>
               </motion.div>
             )}
 
-            {view === 'summary' && <SummaryView />}
-            {view === 'settings' && <SettingsView onAdd={() => setCustomItems(storage.getCustomItems())} />}
+            {view === 'summary' && (
+              <div className="p-4 md:p-8 overflow-y-auto h-full">
+                <SummaryView />
+              </div>
+            )}
+            
+            {view === 'settings' && (
+              <div className="p-4 md:p-8 overflow-y-auto h-full">
+                <SettingsView onAdd={() => setCustomItems(storage.getCustomItems())} />
+              </div>
+            )}
           </AnimatePresence>
+        </main>
+
+        {/* Sidebar (Cart) - Desktop fixed / Mobile Overlay or Bottom Drawer */}
+        <aside className={`
+          fixed bottom-0 left-0 right-0 z-40 bg-white border-t-4 border-slate-200 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)]
+          md:relative md:w-[380px] md:border-t-0 md:border-l-4 md:shadow-none
+          flex flex-col transition-all duration-300
+          ${view !== 'billing' ? 'translate-y-full md:translate-y-0' : 'translate-y-0'}
+          ${cart.length > 0 ? 'h-[65%] md:h-full' : 'h-[140px] md:h-full'}
+        `}>
+          <div className="p-5 border-b-2 border-slate-100 flex justify-between items-center shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-100 text-blue-600 p-2 rounded-xl">
+                <ShoppingCart size={24} />
+              </div>
+              <h2 className="text-xl md:text-2xl font-[900] tracking-tighter text-[#0F172A]">CURRENT BILL</h2>
+            </div>
+            {cart.length > 0 && (
+              <button 
+                onClick={undoLastItem}
+                className="flex items-center gap-2 text-slate-400 font-black text-xs hover:text-rose-500 transition-colors uppercase tracking-widest"
+              >
+                <Trash2 size={18} />
+                Undo
+              </button>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            {cart.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-slate-300 space-y-4 py-8">
+                <ShoppingCart size={64} strokeWidth={1} />
+                <p className="font-black text-xs uppercase tracking-[0.2em]">Select items to bill</p>
+              </div>
+            ) : (
+              cart.map((item) => (
+                <div key={item.id} className="flex items-center justify-between group bg-slate-50 p-4 rounded-2xl border-2 border-transparent hover:border-slate-100 transition-all">
+                  <div className="flex items-center gap-4">
+                    <span className="bg-[#0F172A] text-white px-3 py-1.5 rounded-lg font-black text-lg min-w-[40px] text-center">{item.quantity}</span>
+                    <div>
+                      <p className="font-extrabold text-lg text-[#0F172A] leading-none mb-1">{item.name}</p>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Rate: ₹{item.price}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="font-black text-xl text-[#0F172A]">₹{calculateItemTotal(item)}</span>
+                    <div className="hidden group-hover:flex gap-1">
+                      <button onClick={() => removeFromCart(item.id)} className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400"><Minus size={16}/></button>
+                      <button onClick={() => addToCart(item)} className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400"><Plus size={16}/></button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="p-6 mt-auto border-t-[6px] border-double border-slate-100 bg-white shadow-[0_-20px_50px_rgba(0,0,0,0.05)] shrink-0">
+            <div className="flex justify-between items-center mb-6">
+              <span className="text-2xl font-black text-slate-400 uppercase tracking-widest">Total</span>
+              <span className="text-5xl font-black text-[#0F172A] tracking-tighter">₹{cartTotal}</span>
+            </div>
+            <button
+              disabled={cart.length === 0}
+              onClick={handleCompleteOrder}
+              className={`w-full py-6 md:py-8 rounded-[24px] font-black text-2xl transition-all shadow-2xl relative overflow-hidden ${
+                cart.length > 0 
+                  ? 'bg-[#2563EB] text-white shadow-blue-200 active:scale-95' 
+                  : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+              }`}
+            >
+              COMPLETE ORDER
+            </button>
+          </div>
+        </aside>
+      </div>
+
+      {/* Hidden Stats Bar on Mobile, Sticky Footer on Wide Screens */}
+      {view === 'billing' && (
+        <div className="hidden lg:flex bg-[#0F172A] text-white p-4 px-10 border-t border-slate-800 justify-between items-center z-50">
+          <DailyStats />
         </div>
-      </main>
+      )}
 
       {/* Success Notification */}
       <AnimatePresence>

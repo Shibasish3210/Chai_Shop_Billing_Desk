@@ -10,6 +10,7 @@ export interface Item {
   category: 'Tea' | 'Cigarettes' | 'Snacks' | 'Biscuits' | 'Other';
   color: string;
   isSpecialCombo?: boolean;
+  iconName?: string;
 }
 
 export interface CartItem extends Item {
