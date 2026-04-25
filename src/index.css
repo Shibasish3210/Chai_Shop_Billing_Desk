@@ -4,6 +4,16 @@
   --font-sans: "Helvetica Neue", "Arial", "sans-serif";
 }
 
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
 body {
   @apply bg-[#F8FAFC] text-[#1E293B] antialiased;
 }

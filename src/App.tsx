@@ -31,15 +31,38 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { DEFAULT_ITEMS, CATEGORY_COLORS } from './constants';
-import { Item, CartItem, Order, DailySummary } from './types';
+import { Item, CartItem, Order, DailySummary, DraftBill } from './types';
 import { storage, calculateItemTotal } from './storage';
 
 export default function App() {
   const [view, setView] = useState<'billing' | 'summary' | 'settings'>('billing');
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [bills, setBills] = useState<DraftBill[]>(() => {
+    const saved = localStorage.getItem('chai_draft_bills');
+    return saved ? JSON.parse(saved) : [{ id: 'b1', items: [], name: 'Bill 1', updatedAt: Date.now() }];
+  });
+  const [activeBillId, setActiveBillId] = useState<string>(() => {
+    const saved = localStorage.getItem('chai_active_bill_id');
+    return saved || 'b1';
+  });
   const [customItems, setCustomItems] = useState<Item[]>([]);
   const [isCartExpanded, setIsCartExpanded] = useState(false);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
+
+  // Sync bills and activeBillId to localStorage
+  useEffect(() => {
+    localStorage.setItem('chai_draft_bills', JSON.stringify(bills));
+  }, [bills]);
+
+  useEffect(() => {
+    localStorage.setItem('chai_active_bill_id', activeBillId);
+  }, [activeBillId]);
+
+  const activeBill = useMemo(() => 
+    bills.find(b => b.id === activeBillId) || bills[0], 
+    [bills, activeBillId]
+  );
+  
+  const cart = activeBill?.items || [];
 
   // Load custom items on mount
   useEffect(() => {
@@ -72,40 +95,81 @@ export default function App() {
   };
 
   const addToCart = (item: Item) => {
-    setCart(prev => {
-      const existing = prev.find(i => i.id === item.id);
+    setBills(prev => prev.map(bill => {
+      if (bill.id !== activeBillId) return bill;
+      const existing = bill.items.find(i => i.id === item.id);
+      let newItems;
       if (existing) {
-        return prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
+        newItems = bill.items.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
+      } else {
+        newItems = [...bill.items, { ...item, quantity: 1 }];
       }
-      return [...prev, { ...item, quantity: 1 }];
-    });
+      return { ...bill, items: newItems, updatedAt: Date.now() };
+    }));
   };
 
   const removeFromCart = (id: string) => {
-    setCart(prev => {
-      const existing = prev.find(i => i.id === id);
+    setBills(prev => prev.map(bill => {
+      if (bill.id !== activeBillId) return bill;
+      const existing = bill.items.find(i => i.id === id);
+      let newItems;
       if (existing && existing.quantity > 1) {
-        return prev.map(i => i.id === id ? { ...i, quantity: i.quantity - 1 } : i);
+        newItems = bill.items.map(i => i.id === id ? { ...i, quantity: i.quantity - 1 } : i);
+      } else {
+        newItems = bill.items.filter(i => i.id !== id);
       }
-      return prev.filter(i => i.id !== id);
-    });
+      return { ...bill, items: newItems, updatedAt: Date.now() };
+    }));
   };
 
-  const clearCart = () => setCart([]);
+  const addNewBill = () => {
+    const newId = Math.random().toString(36).substring(7);
+    const newBill = {
+      id: newId,
+      items: [],
+      name: `Bill ${bills.length + 1}`,
+      updatedAt: Date.now()
+    };
+    setBills(prev => [...prev, newBill]);
+    setActiveBillId(newId);
+  };
+
+  const deleteBill = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (bills.length === 1) {
+      setBills([{ id: 'b1', items: [], name: 'Bill 1', updatedAt: Date.now() }]);
+      setActiveBillId('b1');
+      return;
+    }
+    const newBills = bills.filter(b => b.id !== id);
+    setBills(newBills);
+    if (activeBillId === id) {
+      setActiveBillId(newBills[0].id);
+    }
+  };
+
+  const clearCart = () => {
+    setBills(prev => prev.map(bill => 
+      bill.id === activeBillId ? { ...bill, items: [], updatedAt: Date.now() } : bill
+    ));
+  };
 
   const cartTotal = useMemo(() => {
     return cart.reduce((acc, item) => acc + calculateItemTotal(item), 0);
   }, [cart]);
 
   const undoLastItem = () => {
-    setCart(prev => {
-      if (prev.length === 0) return prev;
-      const last = prev[prev.length - 1];
+    setBills(prev => prev.map(bill => {
+      if (bill.id !== activeBillId || bill.items.length === 0) return bill;
+      const newItems = [...bill.items];
+      const last = newItems[newItems.length - 1];
       if (last.quantity > 1) {
-        return prev.map((item, idx) => idx === prev.length - 1 ? { ...item, quantity: item.quantity - 1 } : item);
+        newItems[newItems.length - 1] = { ...last, quantity: last.quantity - 1 };
+      } else {
+        newItems.pop();
       }
-      return prev.slice(0, -1);
-    });
+      return { ...bill, items: newItems, updatedAt: Date.now() };
+    }));
   };
 
   const handleCompleteOrder = () => {
@@ -120,7 +184,19 @@ export default function App() {
     };
 
     storage.saveOrder(order);
-    clearCart();
+    
+    // Remove completed bill and create new one if needed
+    setBills(prev => {
+      const remaining = prev.filter(b => b.id !== activeBillId);
+      if (remaining.length === 0) {
+        const nextId = Math.random().toString(36).substring(7);
+        setActiveBillId(nextId);
+        return [{ id: nextId, items: [], name: 'Bill 1', updatedAt: Date.now() }];
+      }
+      setActiveBillId(remaining[0].id);
+      return remaining;
+    });
+
     setShowOrderSuccess(true);
     setTimeout(() => setShowOrderSuccess(false), 2000);
   };
@@ -172,6 +248,50 @@ export default function App() {
                 exit={{ opacity: 0 }}
                 className="p-4 md:p-8 flex flex-col gap-6"
               >
+                {/* Bills Management */}
+                <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
+                  {bills.map(bill => {
+                    const billTotal = bill.items.reduce((acc, item) => acc + calculateItemTotal(item), 0);
+                    return (
+                      <button
+                        key={bill.id}
+                        onClick={() => {
+                          setActiveBillId(bill.id);
+                          if (bill.items.length > 0) setIsCartExpanded(true);
+                        }}
+                        className={`relative p-4 md:p-5 rounded-[24px] border-4 transition-all min-w-[140px] md:min-w-[160px] text-left shrink-0 ${
+                          activeBillId === bill.id 
+                            ? 'bg-[#0F172A] border-[#0F172A] text-white shadow-xl shadow-slate-200' 
+                            : 'bg-white border-slate-50 text-slate-400 hover:border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <span className={`text-[10px] font-black uppercase tracking-widest ${activeBillId === bill.id ? 'text-slate-400' : 'text-slate-300'}`}>
+                            {bill.name}
+                          </span>
+                          <div 
+                            onClick={(e) => deleteBill(bill.id, e)} 
+                            className={`p-1 rounded-lg transition-colors ${activeBillId === bill.id ? 'hover:bg-white/10 text-white/40' : 'hover:bg-slate-100 text-slate-300'}`}
+                          >
+                              <X size={14} />
+                          </div>
+                        </div>
+                        <div className="text-2xl font-black">₹{billTotal}</div>
+                        {bill.items.length > 0 && activeBillId !== bill.id && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-white" />
+                        )}
+                      </button>
+                    );
+                  })}
+                  <button 
+                    onClick={addNewBill}
+                    className="p-4 md:p-5 rounded-[24px] border-4 border-dashed border-slate-100 text-slate-300 hover:border-slate-200 hover:text-slate-400 transition-all flex flex-col items-center justify-center min-w-[140px] md:min-w-[160px] shrink-0 bg-slate-50/30"
+                  >
+                    <Plus size={24} />
+                    <span className="text-[10px] font-black uppercase mt-1 tracking-widest">New Bill</span>
+                  </button>
+                </div>
+
                 {/* Items Grouped by Category */}
                 <div className="flex flex-col gap-10 pb-48 md:pb-12">
                   {(Object.entries(allItemsByGroup) as [string, Item[]][]).map(([category, items]) => (

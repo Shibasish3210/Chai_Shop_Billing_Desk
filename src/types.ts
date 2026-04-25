@@ -25,6 +25,13 @@ export interface Order {
   date: string; // YYYY-MM-DD for grouping
 }
 
+export interface DraftBill {
+  id: string;
+  items: CartItem[];
+  name: string;
+  updatedAt: number;
+}
+
 export interface DailySummary {
   date: string;
   totalSales: number;
