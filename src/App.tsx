@@ -26,7 +26,9 @@ import {
   Wheat,
   Utensils,
   Flame,
-  Cookie
+  Cookie,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { DEFAULT_ITEMS, CATEGORY_COLORS } from './constants';
 import { Item, CartItem, Order, DailySummary } from './types';
@@ -36,6 +38,7 @@ export default function App() {
   const [view, setView] = useState<'billing' | 'summary' | 'settings'>('billing');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customItems, setCustomItems] = useState<Item[]>([]);
+  const [isCartExpanded, setIsCartExpanded] = useState(false);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
 
   // Load custom items on mount
@@ -228,9 +231,26 @@ export default function App() {
           md:relative md:w-[380px] md:border-t-0 md:border-l-4 md:shadow-none
           flex flex-col transition-all duration-300
           ${view !== 'billing' ? 'translate-y-full md:translate-y-0' : 'translate-y-0'}
-          ${cart.length > 0 ? 'h-[65%] md:h-full' : 'h-[140px] md:h-full'}
+          ${isCartExpanded ? 'h-[85%] md:h-full' : 'h-[72px] md:h-full'}
         `}>
-          <div className="p-5 border-b-2 border-slate-100 flex justify-between items-center shrink-0">
+          {/* Mobile Header / Expand Toggle */}
+          <div 
+            onClick={() => setIsCartExpanded(!isCartExpanded)}
+            className="md:hidden flex items-center justify-between p-4 bg-[#0F172A] text-white cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-500 p-1.5 rounded-lg">
+                <ShoppingCart size={20} />
+              </div>
+              <p className="font-black text-lg">Bill: {cart.length} Items</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-2xl font-black">₹{cartTotal}</span>
+              {isCartExpanded ? <ChevronDown size={24} /> : <ChevronUp size={24} />}
+            </div>
+          </div>
+
+          <div className={`p-5 border-b-2 border-slate-100 flex justify-between items-center shrink-0 ${!isCartExpanded && 'hidden md:flex'}`}>
             <div className="flex items-center gap-3">
               <div className="bg-blue-100 text-blue-600 p-2 rounded-xl">
                 <ShoppingCart size={24} />
@@ -248,7 +268,7 @@ export default function App() {
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <div className={`flex-1 overflow-y-auto p-5 space-y-4 ${!isCartExpanded && 'hidden md:block'}`}>
             {cart.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-slate-300 space-y-4 py-8">
                 <ShoppingCart size={64} strokeWidth={1} />
@@ -276,7 +296,7 @@ export default function App() {
             )}
           </div>
 
-          <div className="p-6 mt-auto border-t-[6px] border-double border-slate-100 bg-white shadow-[0_-20px_50px_rgba(0,0,0,0.05)] shrink-0">
+          <div className={`p-6 mt-auto border-t-[6px] border-double border-slate-100 bg-white shadow-[0_-20px_50px_rgba(0,0,0,0.05)] shrink-0 ${!isCartExpanded && 'hidden md:block'}`}>
             <div className="flex justify-between items-center mb-6">
               <span className="text-2xl font-black text-slate-400 uppercase tracking-widest">Total</span>
               <span className="text-5xl font-black text-[#0F172A] tracking-tighter">₹{cartTotal}</span>
