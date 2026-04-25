@@ -7,7 +7,7 @@ export interface Item {
   id: string;
   name: string;
   price: number;
-  category: 'Tea' | 'Cigarettes' | 'Snacks' | 'Biscuits' | 'Other';
+  category: 'Tea' | 'Addiction' | 'Snacks' | 'Biscuits' | 'Other';
   color: string;
   isSpecialCombo?: boolean;
   iconName?: string;

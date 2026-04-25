@@ -650,7 +650,7 @@ function SettingsView({ onAdd }: { onAdd: () => void }) {
                   className="w-full bg-[#F8FAFC] border-2 border-slate-50 rounded-2xl p-5 focus:ring-4 focus:ring-blue-100 focus:border-[#2563EB] outline-none transition-all font-bold appearance-none"
                 >
                   <option value="Tea">Tea</option>
-                  <option value="Cigarettes">Cigarettes</option>
+                  <option value="Addiction">Addiction</option>
                   <option value="Snacks">Snacks</option>
                   <option value="Biscuits">Biscuits</option>
                   <option value="Other">Other</option>
