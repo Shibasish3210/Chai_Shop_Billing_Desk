@@ -42,3 +42,11 @@ export const CATEGORY_COLORS: Record<string, string> = {
   Biscuits: 'bg-pink-600 text-white',
   Other: 'bg-slate-600 text-white',
 };
+
+export const ITEM_CARD_COLORS: Record<string, string> = {
+  Tea: 'bg-emerald-100 text-emerald-900',
+  Addiction: 'bg-indigo-100 text-indigo-900',
+  Snacks: 'bg-orange-100 text-orange-900',
+  Biscuits: 'bg-pink-100 text-pink-900',
+  Other: 'bg-slate-100 text-slate-900',
+};

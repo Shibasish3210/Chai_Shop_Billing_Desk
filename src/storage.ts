@@ -8,6 +8,10 @@ import { Order, DailySummary, Item } from './types';
 const ORDERS_KEY = 'chai_bill_orders';
 const ITEMS_KEY = 'chai_bill_items';
 
+const RECENT_BILLS_KEY = 'chai_draft_bills';
+const ACTIVE_BILL_KEY = 'chai_active_bill_id';
+const PRICE_OVERRIDES_KEY = 'chai_price_overrides';
+
 export const storage = {
   getOrders(): Order[] {
     const data = localStorage.getItem(ORDERS_KEY);
@@ -58,9 +62,37 @@ export const storage = {
     return summary;
   },
 
+  clearOrders() {
+    localStorage.removeItem(ORDERS_KEY);
+  },
+
+  clearCustomItems() {
+    localStorage.removeItem(ITEMS_KEY);
+  },
+
+  updateCustomItemPrice(id: string, newPrice: number) {
+    const items = this.getCustomItems();
+    const updated = items.map(item => item.id === id ? { ...item, price: newPrice } : item);
+    localStorage.setItem(ITEMS_KEY, JSON.stringify(updated));
+  },
+
+  getPriceOverrides(): Record<string, number> {
+    const data = localStorage.getItem(PRICE_OVERRIDES_KEY);
+    return data ? JSON.parse(data) : {};
+  },
+
+  savePriceOverride(itemId: string, price: number) {
+    const overrides = this.getPriceOverrides();
+    overrides[itemId] = price;
+    localStorage.setItem(PRICE_OVERRIDES_KEY, JSON.stringify(overrides));
+  },
+
   clearAllData() {
     localStorage.removeItem(ORDERS_KEY);
     localStorage.removeItem(ITEMS_KEY);
+    localStorage.removeItem(PRICE_OVERRIDES_KEY);
+    localStorage.removeItem(RECENT_BILLS_KEY);
+    localStorage.removeItem(ACTIVE_BILL_KEY);
   }
 };
 

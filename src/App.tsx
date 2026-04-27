@@ -30,7 +30,7 @@ import {
   ChevronUp,
   ChevronDown
 } from 'lucide-react';
-import { DEFAULT_ITEMS, CATEGORY_COLORS } from './constants';
+import { DEFAULT_ITEMS, CATEGORY_COLORS, ITEM_CARD_COLORS } from './constants';
 import { Item, CartItem, Order, DailySummary, DraftBill } from './types';
 import { storage, calculateItemTotal } from './storage';
 
@@ -45,6 +45,7 @@ export default function App() {
     return saved || 'b1';
   });
   const [customItems, setCustomItems] = useState<Item[]>([]);
+  const [priceOverrides, setPriceOverrides] = useState<Record<string, number>>(() => storage.getPriceOverrides());
   const [isCartExpanded, setIsCartExpanded] = useState(false);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
 
@@ -70,13 +71,17 @@ export default function App() {
   }, []);
 
   const allItemsByGroup = useMemo(() => {
-    const items = [...DEFAULT_ITEMS, ...customItems];
+    const items = [...DEFAULT_ITEMS, ...customItems].map(item => ({
+      ...item,
+      price: priceOverrides[item.id] || item.price,
+      color: ITEM_CARD_COLORS[item.category] || item.color
+    }));
     return items.reduce((acc, item) => {
       if (!acc[item.category]) acc[item.category] = [];
       acc[item.category].push(item);
       return acc;
     }, {} as Record<string, Item[]>);
-  }, [customItems]);
+  }, [customItems, priceOverrides]);
 
   const IconComponent = ({ name, size = 24 }: { name?: string; size?: number }) => {
     switch (name) {
@@ -339,7 +344,10 @@ export default function App() {
             
             {view === 'settings' && (
               <div className="p-4 md:p-8 overflow-y-auto h-full">
-                <SettingsView onAdd={() => setCustomItems(storage.getCustomItems())} />
+                <SettingsView 
+                  onAdd={() => setCustomItems(storage.getCustomItems())} 
+                  onPriceUpdate={() => setPriceOverrides(storage.getPriceOverrides())}
+                />
               </div>
             )}
           </AnimatePresence>
@@ -580,10 +588,24 @@ function SummaryView() {
   );
 }
 
-function SettingsView({ onAdd }: { onAdd: () => void }) {
+function SettingsView({ onAdd, onPriceUpdate }: { onAdd: () => void; onPriceUpdate: () => void }) {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState<Item['category']>('Other');
+  const [search, setSearch] = useState('');
+
+  const customItems = useMemo(() => storage.getCustomItems(), []);
+  const allItems = useMemo(() => {
+    const overrides = storage.getPriceOverrides();
+    return [...DEFAULT_ITEMS, ...customItems].map(i => ({
+      ...i,
+      price: overrides[i.id] || i.price
+    }));
+  }, [customItems]);
+
+  const filteredItems = useMemo(() => {
+    return allItems.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
+  }, [allItems, search]);
 
   const handleAddItem = (e: React.FormEvent) => {
     e.preventDefault();
@@ -594,7 +616,7 @@ function SettingsView({ onAdd }: { onAdd: () => void }) {
       name,
       price: Number(price),
       category,
-      color: 'bg-slate-700', // Default color for custom items
+      color: ITEM_CARD_COLORS[category] || 'bg-slate-700',
     };
 
     storage.saveCustomItem(newItem);
@@ -603,88 +625,173 @@ function SettingsView({ onAdd }: { onAdd: () => void }) {
     onAdd();
   };
 
+  const handleUpdatePrice = (itemId: string, currentPrice: number) => {
+    const newPrice = prompt(`Enter new price for this item:`, currentPrice.toString());
+    if (newPrice !== null && !isNaN(Number(newPrice))) {
+      storage.savePriceOverride(itemId, Number(newPrice));
+      onPriceUpdate();
+      // Reload is needed to refresh the list memo if we don't lift state further
+      // But we call onPriceUpdate which updates the parent state
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="max-w-2xl space-y-8 pb-12"
+      className="max-w-4xl space-y-12 pb-24"
     >
-      <div>
-        <h1 className="text-3xl font-[900] tracking-tighter text-[#0F172A]">SETTINGS</h1>
-        <p className="text-slate-500 font-medium uppercase text-xs tracking-widest">Manage items and preferences</p>
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-4xl font-[1000] tracking-tighter text-[#0F172A] leading-none mb-2">SETTINGS</h1>
+          <p className="text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">Inventory & Data Management</p>
+        </div>
       </div>
 
-      <div className="bg-white p-10 rounded-[32px] border-2 border-slate-100 shadow-sm">
-        <h3 className="text-sm font-[900] text-slate-400 uppercase tracking-widest mb-8 flex items-center gap-2">
-          <Plus className="text-[#2563EB]" />
-          Add New Item
-        </h3>
-        <form onSubmit={handleAddItem} className="space-y-8">
-          <div className="space-y-3">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[2px] pl-1">Item Name</label>
-            <input 
-              type="text" 
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. SPECIAL COFFEE"
-              className="w-full bg-[#F8FAFC] border-2 border-slate-50 rounded-2xl p-5 focus:ring-4 focus:ring-blue-100 focus:border-[#2563EB] outline-none transition-all font-bold placeholder:text-slate-300"
-            />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Left Column: Add Item */}
+        <div className="space-y-8">
+          <div className="bg-white p-8 rounded-[32px] border-2 border-slate-100 shadow-sm">
+            <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest mb-8 flex items-center gap-3">
+              <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
+                <Plus size={20} />
+              </div>
+              Create New Product
+            </h3>
+            <form onSubmit={handleAddItem} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Name</label>
+                <input 
+                  type="text" 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Masala Omelette"
+                  className="w-full bg-slate-50 border-2 border-transparent rounded-2xl p-4 focus:bg-white focus:border-blue-500 outline-none transition-all font-bold"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Price (₹)</label>
+                  <input 
+                    type="number" 
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="0"
+                    className="w-full bg-slate-50 border-2 border-transparent rounded-2xl p-4 focus:bg-white focus:border-blue-500 outline-none transition-all font-bold"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Category</label>
+                  <select 
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value as any)}
+                    className="w-full bg-slate-50 border-2 border-transparent rounded-2xl p-4 focus:bg-white focus:border-blue-500 outline-none transition-all font-bold appearance-none cursor-pointer"
+                  >
+                    {Object.keys(CATEGORY_COLORS).map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <button 
+                type="submit"
+                className="w-full bg-[#0F172A] text-white font-black py-5 rounded-[20px] shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2 tracking-widest text-xs mt-4"
+              >
+                CONFIRM & ADD
+              </button>
+            </form>
           </div>
-          <div className="grid grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[2px] pl-1">Price (₹)</label>
-              <input 
-                type="number" 
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="0"
-                className="w-full bg-[#F8FAFC] border-2 border-slate-50 rounded-2xl p-5 focus:ring-4 focus:ring-blue-100 focus:border-[#2563EB] outline-none transition-all font-bold placeholder:text-slate-300"
-              />
-            </div>
-            <div className="space-y-3">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[2px] pl-1">Category</label>
-              <div className="relative">
-                <select 
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value as any)}
-                  className="w-full bg-[#F8FAFC] border-2 border-slate-50 rounded-2xl p-5 focus:ring-4 focus:ring-blue-100 focus:border-[#2563EB] outline-none transition-all font-bold appearance-none"
+
+          <div className="bg-white p-8 rounded-[32px] border-2 border-slate-100 shadow-sm">
+            <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-3">
+              <div className="bg-rose-100 p-2 rounded-xl text-rose-600">
+                <Trash2 size={20} />
+              </div>
+              Danger Zone
+            </h3>
+            
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-rose-50/50 border border-rose-100 flex items-center justify-between">
+                <div>
+                  <p className="font-black text-rose-900 text-sm">Clear Sales Data</p>
+                  <p className="text-[10px] font-bold text-rose-700/60 uppercase">Reset daily orders & stats</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    if(confirm('Delete ALL sales history? This cannot be undone.')) {
+                      storage.clearOrders();
+                      window.location.reload();
+                    }
+                  }}
+                  className="px-4 py-2 bg-white text-rose-600 border border-rose-200 rounded-xl font-black text-[10px] uppercase hover:bg-rose-600 hover:text-white transition-all"
                 >
-                  <option value="Tea">Tea</option>
-                  <option value="Addiction">Addiction</option>
-                  <option value="Snacks">Snacks</option>
-                  <option value="Biscuits">Biscuits</option>
-                  <option value="Other">Other</option>
-                </select>
-                <ChevronRight className="absolute right-5 top-1/2 -translate-y-1/2 rotate-90 text-slate-400 pointer-events-none" size={20} />
+                  Clear Data
+                </button>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-rose-50/50 border border-rose-100 flex items-center justify-between">
+                <div>
+                  <p className="font-black text-rose-900 text-sm">Delete Custom Menu</p>
+                  <p className="text-[10px] font-bold text-rose-700/60 uppercase">Remove all manually added items</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    if(confirm('Delete ALL custom menu items?')) {
+                      storage.clearCustomItems();
+                      window.location.reload();
+                    }
+                  }}
+                  className="px-4 py-2 bg-white text-rose-600 border border-rose-200 rounded-xl font-black text-[10px] uppercase hover:bg-rose-600 hover:text-white transition-all"
+                >
+                  Wipe Menu
+                </button>
               </div>
             </div>
           </div>
-          <button 
-            type="submit"
-            className="w-full bg-[#2563EB] text-white font-[900] py-5 rounded-2xl shadow-xl shadow-blue-100 hover:bg-blue-600 active:scale-98 transition-all flex items-center justify-center gap-2 tracking-widest text-sm"
-          >
-            SAVE NEW ITEM
-          </button>
-        </form>
-      </div>
+        </div>
 
-      <div className="bg-[#FEF2F2] p-8 rounded-[32px] border-2 border-rose-100 text-rose-800">
-        <h4 className="font-[900] mb-2 flex items-center gap-2 uppercase tracking-widest text-sm">
-          <Trash size={18} />
-          Danger Zone
-        </h4>
-        <p className="text-xs mb-6 text-rose-700/70 font-medium">Deleting all data will wipe daily sales, custom items and preferences permanently.</p>
-        <button 
-          onClick={() => {
-            if(confirm('Are you sure? This will delete ALL orders and custom items.')) {
-              storage.clearAllData();
-              window.location.reload();
-            }
-          }}
-          className="text-white bg-rose-600 px-8 py-3 rounded-xl font-[900] text-xs tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-100"
-        >
-          RESET ALL DATA
-        </button>
+        {/* Right Column: Manage Prices */}
+        <div className="bg-white p-8 rounded-[32px] border-2 border-slate-100 shadow-sm flex flex-col h-[600px]">
+          <div className="shrink-0 mb-6">
+            <h3 className="text-xs font-[1000] text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-3">
+              <div className="bg-emerald-100 p-2 rounded-xl text-emerald-600">
+                <Settings size={20} />
+              </div>
+              Edit Item Prices
+            </h3>
+            <div className="relative">
+              <X size={16} className={`absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 cursor-pointer ${!search && 'hidden'}`} onClick={() => setSearch('')} />
+              <input 
+                type="text" 
+                placeholder="Search items..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-slate-50 border-2 border-transparent rounded-[20px] p-4 pl-5 font-bold outline-none focus:bg-white focus:border-emerald-500"
+              />
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto pr-2 space-y-2 scrollbar-hide">
+            {filteredItems.map(item => (
+              <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl hover:bg-slate-100 transition-colors group">
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${ITEM_CARD_COLORS[item.category]?.split(' ')[0] || 'bg-slate-300'}`} />
+                  <div>
+                    <p className="font-black text-slate-800 text-sm leading-none mb-1">{item.name}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.category}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleUpdatePrice(item.id, item.price)}
+                  className="flex items-center gap-3 px-4 py-2 bg-white border border-slate-200 rounded-xl group-hover:border-emerald-500 group-hover:text-emerald-600 transition-all"
+                >
+                  <span className="font-black text-sm">₹{item.price}</span>
+                  <ChevronRight size={14} className="opacity-30" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </motion.div>
   );
